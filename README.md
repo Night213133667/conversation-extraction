@@ -260,6 +260,9 @@ export OPENAI_MODEL=gpt-4o-mini                  # 可选
 # 健康检查
 curl http://localhost:8080/api/extraction/health
 
+# 运行结果报告
+http://localhost:8080/report.html
+
 # 单条提取
 curl -X POST http://localhost:8080/api/extraction/single \
   -H "Content-Type: application/json" \
