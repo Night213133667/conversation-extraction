@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客服对话结构化信息提取 — 完整报告</title>
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #fff;
+            --text: #2c3e50;
+            --muted: #7f8c8d;
+            --border: #e0e4e8;
+            --green: #27ae60;
+            --red: #e74c3c;
+            --blue: #3498db;
+            --orange: #f39c12;
+            --purple: #8e44ad;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        h1 { font-size: 24px; margin-bottom: 8px; }
+        h2 { font-size: 18px; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--blue); }
+        h3 { font-size: 15px; margin: 16px 0 8px; }
+
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+        .meta span { margin-right: 20px; }
+
+        /* KPI Cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .kpi-card { background: var(--card-bg); border-radius: 10px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); text-align: center; }
+        .kpi-card .value { font-size: 32px; font-weight: 700; }
+        .kpi-card .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+        .kpi-card.green .value { color: var(--green); }
+        .kpi-card.red .value { color: var(--red); }
+        .kpi-card.blue .value { color: var(--blue); }
+        .kpi-card.orange .value { color: var(--orange); }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px; }
+        th, td { padding: 10px 14px; text-align: left; font-size: 13px; }
+        th { background: #f0f3f7; font-weight: 600; color: var(--text); }
+        td { border-top: 1px solid var(--border); }
+        tr:hover td { background: #fafbfc; }
+
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .tag-resolved { background: #d4efdf; color: #1e8449; }
+        .tag-unresolved { background: #fadbd8; color: #c0392b; }
+        .tag-angry { background: #fadbd8; color: #c0392b; }
+        .tag-negative { background: #fdebd0; color: #b9770e; }
+        .tag-positive { background: #d4efdf; color: #1e8449; }
+        .tag-neutral { background: #eaecee; color: #7f8c8d; }
+
+        .bar-wrap { background: #eaecee; border-radius: 4px; height: 8px; margin-top: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 4px; background: var(--blue); transition: width 0.5s; }
+
+        .accuracy-big { text-align: center; padding: 20px; }
+        .accuracy-big .pct { font-size: 56px; font-weight: 700; color: var(--green); }
+        .accuracy-big .desc { color: var(--muted); font-size: 14px; }
+
+        .sample-conv { background: var(--card-bg); border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 12px; }
+        .sample-conv .conv-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .sample-conv .conv-id { font-weight: 600; }
+        .sample-conv pre { background: #f8f9fa; border-radius: 6px; padding: 12px; font-size: 12px; overflow-x: auto; max-height: 300px; overflow-y: auto; }
+
+        .loading { text-align: center; padding: 40px; color: var(--muted); }
+        .error { background: #fadbd8; color: #c0392b; padding: 16px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 客服对话结构化信息提取 — 完整报告</h1>
+    <div class="meta">
+        <span>📅 <span id="meta-date">-</span></span>
+        <span>⚙️ 模式: <span id="meta-mode">-</span></span>
+        <span>⏱️ 耗时: <span id="meta-time">-</span> ms</span>
+    </div>
+
+    <div id="loading" class="loading">⏳ 正在提取中，请稍候...</div>
+    <div id="error" class="error" style="display:none;"></div>
+    <div id="content" style="display:none;">
+
+        <!-- KPI -->
+        <h2>📈 核心指标</h2>
+        <div class="kpi-grid">
+            <div class="kpi-card blue"><div class="value" id="kpi-total">-</div><div class="label">对话总数</div></div>
+            <div class="kpi-card green"><div class="value" id="kpi-resolved">-</div><div class="label">已解决</div></div>
+            <div class="kpi-card red"><div class="value" id="kpi-unresolved">-</div><div class="label">未解决</div></div>
+            <div class="kpi-card green"><div class="value" id="kpi-rate">-</div><div class="label">解决率</div></div>
+            <div class="kpi-card orange"><div class="value" id="kpi-angry">-</div><div class="label">初始愤怒用户</div></div>
+            <div class="kpi-card blue"><div class="value" id="kpi-improved">-</div><div class="label">情绪改善</div></div>
+        </div>
+
+        <!-- Accuracy -->
+        <h2>✅ 准确率验证（人工抽检 5 条）</h2>
+        <div class="accuracy-big"><div class="pct" id="accuracy-pct">-</div><div class="desc" id="accuracy-desc"></div></div>
+        <table><thead><tr><th>对话ID</th><th>场景</th><th>检查字段</th><th>正确字段</th><th>准确率</th><th>备注</th></tr></thead>
+            <tbody id="accuracy-body"></tbody>
+        </table>
+
+        <!-- Intent Distribution -->
+        <h2>🏷️ 意图分布</h2>
+        <table><thead><tr><th>意图类别</th><th>数量</th><th>占比</th></tr></thead>
+            <tbody id="intent-body"></tbody>
+        </table>
+
+        <!-- Sentiment -->
+        <h2>😊 情绪分析</h2>
+        <table>
+            <thead><tr><th>指标</th><th>angry</th><th>negative</th><th>neutral</th></tr></thead>
+            <tbody><tr><td><strong>初始情绪</strong></td><td id="sent-init-angry">-</td><td id="sent-init-neg">-</td><td id="sent-init-neu">-</td></tr></tbody>
+        </table>
+        <table style="margin-top:12px;">
+            <thead><tr><th>情绪趋势</th><th>improved ↑</th><th>stable →</th><th>worsened ↓</th></tr></thead>
+            <tbody><tr><td></td><td id="sent-trend-imp" style="color:var(--green);font-weight:600;">-</td><td id="sent-trend-sta">-</td><td id="sent-trend-wor" style="color:var(--red);font-weight:600;">-</td></tr></tbody>
+        </table>
+
+        <!-- Edge Cases -->
+        <h2>⚠️ 边界情况标记</h2>
+        <table><thead><tr><th>标记类型</th><th>命中数量</th><th>说明</th></tr></thead>
+            <tbody id="edge-body"></tbody>
+        </table>
+
+        <!-- Sample Results -->
+        <h2>📋 提取结果示例（前5条）</h2>
+        <div id="samples"></div>
+
+        <!-- Resolution Types -->
+        <h2>🔧 解决方式分布</h2>
+        <table><thead><tr><th>解决方式</th><th>数量</th></tr></thead>
+            <tbody id="resolution-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+(async () => {
+    try {
+        const res = await fetch('/api/extraction/report');
+        if (!res.ok) throw new Error('API 请求失败: ' + res.status);
+        const data = await res.json();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = '';
+
+        // Meta
+        document.getElementById('meta-date').textContent = data.generated_at || '-';
+        document.getElementById('meta-mode').textContent = data.extraction_mode || '-';
+        document.getElementById('meta-time').textContent = data.processing_time_ms || '-';
+
+        const s = data.summary || {};
+
+        // KPI
+        document.getElementById('kpi-total').textContent = s.total_conversations || 0;
+        document.getElementById('kpi-resolved').textContent = s.resolved || 0;
+        document.getElementById('kpi-unresolved').textContent = s.unresolved || 0;
+        document.getElementById('kpi-rate').textContent = s.resolution_rate || '-';
+        document.getElementById('kpi-angry').textContent = (s.initial_sentiment || {}).angry || 0;
+        document.getElementById('kpi-improved').textContent = (s.sentiment_trend || {}).improved || 0;
+
+        // Accuracy
+        const acc = data.accuracy_check || {};
+        document.getElementById('accuracy-pct').textContent = acc.overall_accuracy || '-';
+        document.getElementById('accuracy-desc').textContent = acc.description || '';
+        const accTbody = document.getElementById('accuracy-body');
+        (acc.per_conversation_details || []).forEach(c => {
+            accTbody.innerHTML += `<tr>
+                <td>${c.conversation_id}</td><td>${c.scenario}</td>
+                <td>${c.fields_checked}</td><td>${c.fields_correct}</td>
+                <td><strong>${c.accuracy}</strong></td><td style="font-size:12px;color:var(--muted)">${c.notes}</td>
+            </tr>`;
+        });
+
+        // Intent distribution
+        const intentTbody = document.getElementById('intent-body');
+        const intentDist = s.intent_distribution || {};
+        const total = s.total_conversations || 1;
+        Object.entries(intentDist).sort((a,b) => b[1] - a[1]).forEach(([k,v]) => {
+            const pct = (v * 100 / total).toFixed(1);
+            intentTbody.innerHTML += `<tr>
+                <td>${k}</td><td><strong>${v}</strong></td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div class="bar-wrap" style="flex:1;"><div class="bar-fill" style="width:${pct}%"></div></div>
+                        <span style="font-size:12px;">${pct}%</span>
+                    </div>
+                </td>
+            </tr>`;
+        });
+
+        // Sentiment
+        const initSent = s.initial_sentiment || {};
+        document.getElementById('sent-init-angry').textContent = initSent.angry || 0;
+        document.getElementById('sent-init-neg').textContent = initSent.negative || 0;
+        document.getElementById('sent-init-neu').textContent = initSent.neutral || 0;
+        const trendSent = s.sentiment_trend || {};
+        document.getElementById('sent-trend-imp').textContent = trendSent.improved || 0;
+        document.getElementById('sent-trend-sta').textContent = trendSent.stable || 0;
+        document.getElementById('sent-trend-wor').textContent = trendSent.worsened || 0;
+
+        // Edge cases
+        const edge = s.edge_case_flags || {};
+        const edgeLabels = {
+            multiple_intents: ['多诉求', '同一对话中用户提出多个不同诉求'],
+            escalation: ['转人工', '涉及转人工客服或升级处理'],
+            topic_switch: ['话题切换', '用户在对话中途切换了话题'],
+            incomplete: ['未完成对话', '对话过早结束或无明确结论'],
+            needs_follow_up: ['需跟进', '未解决或情绪恶化需后续跟进']
+        };
+        const edgeTbody = document.getElementById('edge-body');
+        Object.entries(edgeLabels).forEach(([key, [label, desc]]) => {
+            edgeTbody.innerHTML += `<tr><td>${label}</td><td><strong>${edge[key] || 0}</strong></td><td style="color:var(--muted);font-size:12px;">${desc}</td></tr>`;
+        });
+
+        // Sample results
+        const samples = data.sample_results || [];
+        document.getElementById('samples').innerHTML = samples.map((r, i) => `
+            <div class="sample-conv">
+                <div class="conv-header">
+                    <span class="conv-id">#${i+1} ${r.conversation_id} · ${r.intent_category || '-'}</span>
+                    <span>
+                        <span class="tag ${r.is_resolved ? 'tag-resolved' : 'tag-unresolved'}">${r.is_resolved ? '已解决' : '未解决'}</span>
+                        <span class="tag tag-${r.user_initial_sentiment || 'neutral'}">${r.user_initial_sentiment}</span>
+                        <span style="margin:0 4px;">→</span>
+                        <span class="tag tag-${r.user_final_sentiment || 'neutral'}">${r.user_final_sentiment}</span>
+                    </span>
+                </div>
+                <pre>${JSON.stringify(r, null, 2)}</pre>
+            </div>
+        `).join('');
+
+        // Resolution types
+        const resTbody = document.getElementById('resolution-body');
+        const resDist = s.resolution_type_distribution || {};
+        Object.entries(resDist).sort((a,b) => b[1] - a[1]).forEach(([k,v]) => {
+            resTbody.innerHTML += `<tr><td>${k}</td><td><strong>${v}</strong></td></tr>`;
+        });
+
+    } catch(e) {
+        document.getElementById('loading').style.display = 'none';
+        const errEl = document.getElementById('error');
+        errEl.style.display = '';
+        errEl.textContent = '❌ 加载失败: ' + e.message;
+    }
+})();
+</script>
+</body>
+</html>

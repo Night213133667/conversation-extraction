@@ -1,0 +1,23 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: conversation-extraction
+
+  # ========== Spring AI OpenAI 配置 ==========
+  # 使用任何 OpenAI 兼容的 API（OpenAI / DeepSeek / 通义千问 / Ollama 等）
+  ai:
+    deepseek:
+      api-key:
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: ${OPENAI_MODEL:deepseek-v4-pro}
+          temperature: 0.1  # 低温度以获得更稳定的结构化输出
+
+# ========== 应用自定义配置 ==========
+app:
+  extraction:
+     mode: llm    # 使用真实 LLM API（需配置上方 spring.ai.openai）
+#    mode: mock     # 使用基于规则的 mock 模式（无需 API key）
